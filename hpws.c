@@ -38,7 +38,7 @@
 #define POLL_TIMEOUT 2000 /* ms */ // This timeout has to account for the possible delays in communication via internet.
 #define CLIENT_SHUTDOWN_CYCLES 3
 #define CLIENT_SHUTDOWN_FINAL_TIMEOUT 5000 /* microseconds */
-#define HPWS_VERSION "0.9.0"
+#define HPWS_VERSION "0.9.1"
 #define POW_DIFFICULTY 5
 #define UDP_MSG_INIT 1
 #define UDP_MSG_VISA_REQ 2
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
     SSL* ssl = NULL;
     SSL_CTX* ctx = NULL;
     char* ssl_write_buf = NULL, *ssl_encrypt_buf = NULL;
-    size_t ssl_write_len = NULL, ssl_encrypt_len = NULL;
+    size_t ssl_write_len = 0, ssl_encrypt_len = 0;
     char cert[256]; strcpy(cert, "cert.pem");
     char key[256]; strcpy(key, "key.pem");
     char ssl_buf[SSL_BUFFER_LENGTH];
@@ -248,7 +248,7 @@ int main(int argc, char **argv)
 ** --------------------------------------------------------------------------------------------------------------------
 */
    {
-        if (strcmp(argv[1], "-v") == 0 && argc == 2)
+        if (argc == 2 && strcmp(argv[1], "-v") == 0)
         {
             printf("%s\n", HPWS_VERSION);
             return 0;
@@ -256,8 +256,10 @@ int main(int argc, char **argv)
        
         #define PARSE_INT_OR_EXIT(str, msg, into_int)\
         {\
-            if (sscanf(str, "%d", &into_int) != 1)\
+            long long parsed_int;\
+            if (sscanf(str, "%lld", &parsed_int) != 1)\
                 ABEND(10, "failed to parse integer argument for " msg);\
+            into_int = parsed_int;\
         }
 
         int hpws_mode = 0;
@@ -645,7 +647,7 @@ int main(int argc, char **argv)
             // Set TCP no delay so OS packet buffering doesn't happen.
             int optval = 1;
             if (setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) == -1)
-                fprintf(stderr, "[HPWS.C PID+%08X] Failed to set NODELAY for accepted socket. errno:%d\n", errno);
+                fprintf(stderr, "[HPWS.C PID+%08X] Failed to set NODELAY for accepted socket. errno:%d\n", my_pid, errno);
 
             // RH TODO process/ connection / ip counting here
 
@@ -962,7 +964,7 @@ int main(int argc, char **argv)
         // Set TCP no delay so OS packet buffering doesn't happen.
         int optval = 1;
         if (setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &optval, sizeof(optval)) == -1)
-            fprintf(stderr, "[HPWS.C PID+%08X] Failed to set NODELAY for client socket. errno:%d\n", errno);
+            fprintf(stderr, "[HPWS.C PID+%08X] Failed to set NODELAY for client socket. errno:%d\n", my_pid, errno);
 
         if (DEBUG)
             fprintf(stderr, "[HPWS.C PID+%08X] connected\n", my_pid);
@@ -2074,7 +2076,7 @@ int main(int argc, char **argv)
                             GOTO_ERROR("received invalid 'c' message from control fd", control_error);
 
                         if (DEBUG)
-                            printf("[HPWS.C PID+%08X] received ack for buffer %c\n", control_msg[1]);
+                            printf("[HPWS.C PID+%08X] received ack for buffer %c\n", my_pid, control_msg[1]);
 
                         int unlock = control_msg[1] - '0';
                         ws_buffer_lock[unlock] = 0;
